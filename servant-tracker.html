@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chaldea Ledger — Servant Material Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f4f6f8; --panel:#ffffff; --panel2:#f7f9fb; --line:#dfe5ec;
+    --text:#273142; --muted:#748092; --gold:#b18435; --red:#c85e65; --green:#398568;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;line-height:1.45;}
+  h1,h2,h3{font-family:'Cinzel',serif;font-weight:700;margin:0;}
+  header{padding:34px 32px 24px;background:var(--panel);border-bottom:1px solid var(--line);box-shadow:0 2px 12px rgba(42,55,72,.04);}
+  header h1{font-size:1.55rem;letter-spacing:.06em;color:var(--gold);}
+  header p{color:var(--muted);margin:6px 0 0;font-size:.9rem;}
+  .wrap{max-width:1100px;margin:0 auto;padding:28px 32px 64px;}
+  .modes{display:flex;gap:8px;margin-bottom:22px;}
+  .modes button{background:var(--panel);border:1px solid var(--line);color:var(--muted);padding:9px 18px;border-radius:8px;cursor:pointer;font-size:.9rem;font-weight:600;transition:.18s ease;}
+  .modes button:hover{border-color:#c5a66b;color:var(--text);transform:translateY(-1px);}
+  .modes button.active{background:#f3ead7;color:#76571c;border-color:#d9bd82;box-shadow:0 2px 6px rgba(177,132,53,.12);}
+  .search{position:relative;margin-bottom:26px;}
+  .search input{width:100%;padding:13px 15px;background:var(--panel);border:1px solid var(--line);border-radius:9px;color:var(--text);font-size:.95rem;box-shadow:0 2px 8px rgba(42,55,72,.04);}
+  .search input::placeholder{color:#9aa5b3;}
+  .search input:focus{outline:none;border-color:#c5a66b;box-shadow:0 0 0 3px rgba(177,132,53,.12);}
+  .search select{background:var(--panel);border:1px solid var(--line);border-radius:9px;color:var(--text);font-size:.9rem;padding:0 12px;}
+  .search select:focus{outline:none;border-color:#c5a66b;box-shadow:0 0 0 3px rgba(177,132,53,.12);}
+  .results{position:absolute;top:100%;left:0;right:0;background:var(--panel);border:1px solid var(--line);border-radius:9px;margin-top:6px;max-height:280px;overflow-y:auto;z-index:5;box-shadow:0 12px 28px rgba(42,55,72,.12);}
+  .results div{padding:10px 15px;cursor:pointer;font-size:.9rem;display:flex;justify-content:space-between;}
+  .results div:hover{background:#f3ead7;}
+  .results .cls{color:var(--muted);font-size:.8rem;}
+
+  .tabstrip{display:flex;border:1px solid var(--line);border-radius:10px;overflow-x:auto;background:var(--panel);margin-bottom:0;box-shadow:0 2px 10px rgba(42,55,72,.04);}
+  .tab{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:7px;padding:13px 16px;border-right:1px solid var(--line);cursor:pointer;min-width:98px;position:relative;transition:.18s ease;}
+  .tab:last-child{border-right:none;}
+  .tab:hover{background:#fbfcfd;}
+  .tab.active{background:#f8f1e3;box-shadow:inset 0 -3px 0 var(--gold);}
+  .tab img{width:48px;height:48px;border-radius:8px;object-fit:cover;background:var(--panel2);border:1px solid var(--line);}
+  .tab .tname{font-size:.72rem;color:var(--text);text-align:center;max-width:82px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .tab .x{position:absolute;top:4px;right:6px;font-size:.7rem;color:var(--muted);}
+  .tab .x:hover{color:var(--red);}
+  .tab.combined{font-family:'Cinzel',serif;color:var(--gold);}
+  .tab.combined .icon{width:48px;height:48px;border-radius:8px;background:#fffaf0;border:1px dashed var(--gold);display:flex;align-items:center;justify-content:center;font-size:1.3rem;}
+
+  .detail{background:var(--panel);border:1px solid var(--line);border-top:none;border-radius:0 0 10px 10px;padding:24px;margin-bottom:18px;box-shadow:0 4px 14px rgba(42,55,72,.05);}
+  .card-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;}
+  .card-head h3{font-size:1.1rem;color:var(--gold);}
+  .card-head .meta{color:var(--muted);font-size:.8rem;}
+  .remove{background:#fff;border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:5px 12px;cursor:pointer;font-size:.8rem;}
+  .remove:hover{border-color:var(--red);color:var(--red);}
+  .section-label{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:14px 0 8px;}
+  .asc-row{display:flex;gap:10px;flex-wrap:wrap;}
+  .asc-row label{display:flex;align-items:center;gap:6px;font-size:.85rem;background:var(--panel2);padding:7px 11px;border-radius:7px;cursor:pointer;border:1px solid var(--line);}
+  .skill-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+  .skill-box{background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:9px 11px;}
+  .skill-box label{font-size:.75rem;color:var(--muted);display:block;margin-bottom:4px;}
+  .skill-box input{width:100%;background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:5px;padding:5px 7px;font-size:.85rem;}
+  .target-row{margin-top:10px;font-size:.85rem;display:flex;align-items:center;gap:8px;}
+  .target-row select{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:5px;padding:4px 8px;}
+  table{width:100%;border-collapse:collapse;margin-top:8px;}
+  th{text-align:left;font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--line);}
+  td{padding:8px 10px;border-bottom:1px solid var(--line);font-size:.9rem;}
+  td.num{text-align:right;font-variant-numeric:tabular-nums;}
+  td.mat{display:flex;align-items:center;gap:8px;}
+  td.mat img{width:28px;height:28px;border-radius:6px;background:var(--panel2);}
+  input.own{width:64px;background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:5px;padding:4px 6px;text-align:right;}
+  .deficit{color:var(--red);font-weight:600;}
+  .done{color:var(--green);}
+  .empty{color:var(--muted);padding:34px;text-align:center;border:1px dashed #cbd4de;border-radius:9px;background:#fbfcfd;}
+  .qp-line{margin-top:10px;color:var(--gold);font-size:.9rem;}
+  .status{color:var(--muted);font-size:.85rem;margin:6px 0 18px;}
+  @media(max-width:640px){
+    header{padding:26px 20px 20px;}
+    .wrap{padding:22px 16px 48px;}
+    .search>div:first-child{flex-wrap:wrap;}
+    .search select{height:42px;width:100%;padding:0 12px;}
+    .skill-grid{grid-template-columns:1fr;}
+    .detail{padding:18px 15px;}
+    .card-head{align-items:flex-start;gap:12px;}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>CHALDEA LEDGER</h1>
+  <p>Servant ascension &amp; skill material tracker — live data from Atlas Academy</p>
+</header>
+<div class="wrap">
+  <div class="modes">
+    <button id="modeSingle" class="active">Single Servant</button>
+    <button id="modeRoster">Full Roster</button>
+  </div>
+  <div class="search">
+    <div style="display:flex;gap:8px;">
+      <input id="searchInput" type="text" placeholder="Search a servant by name…" autocomplete="off" style="flex:1;">
+      <select id="classFilter">
+        <option value="">All classes</option>
+        <option value="saber">Saber</option>
+        <option value="archer">Archer</option>
+        <option value="lancer">Lancer</option>
+        <option value="rider">Rider</option>
+        <option value="caster">Caster</option>
+        <option value="assassin">Assassin</option>
+        <option value="berserker">Berserker</option>
+        <option value="shielder">Shielder</option>
+        <option value="ruler">Ruler</option>
+        <option value="alterEgo">Alter Ego</option>
+        <option value="avenger">Avenger</option>
+        <option value="moonCancer">Moon Cancer</option>
+        <option value="foreigner">Foreigner</option>
+        <option value="pretender">Pretender</option>
+      </select>
+    </div>
+    <div id="results" class="results" style="display:none;"></div>
+  </div>
+  <div id="status" class="status"></div>
+  <div id="tabstrip"></div>
+  <div id="detail"></div>
+</div>
+
+<script>
+const NICE = id => `https://api.atlasacademy.io/nice/NA/servant/${id}?lore=false`;
+const BASIC = `https://api.atlasacademy.io/export/NA/basic_servant.json`;
+const COMBINED = 'combined';
+
+let basicList = JSON.parse(localStorage.getItem('cl_basic')||'null');
+let state = JSON.parse(localStorage.getItem('cl_state')||'null') || {mode:'single', servants:[], selected:null};
+let inventory = JSON.parse(localStorage.getItem('cl_inventory')||'{}');
+const svtCache = {};
+
+const $ = s => document.querySelector(s);
+const statusEl = $('#status');
+
+function save(){
+  localStorage.setItem('cl_state', JSON.stringify(state));
+  localStorage.setItem('cl_inventory', JSON.stringify(inventory));
+}
+
+async function ensureBasicList(){
+  if(basicList) return;
+  statusEl.textContent = 'Loading servant list…';
+  const r = await fetch(BASIC);
+  basicList = (await r.json()).filter(s=>s.type==='normal'||s.type==='heroine');
+  localStorage.setItem('cl_basic', JSON.stringify(basicList));
+  statusEl.textContent = '';
+}
+
+async function fetchServant(id){
+  if(svtCache[id]) return svtCache[id];
+  const cached = localStorage.getItem('cl_svt_'+id);
+  if(cached){ svtCache[id]=JSON.parse(cached); return svtCache[id]; }
+  statusEl.textContent = 'Fetching servant data…';
+  const r = await fetch(NICE(id));
+  const data = await r.json();
+  svtCache[id] = data;
+  localStorage.setItem('cl_svt_'+id, JSON.stringify(data));
+  statusEl.textContent = '';
+  return data;
+}
+
+async function updateResults(){
+  await ensureBasicList();
+  const q = $('#searchInput').value.trim().toLowerCase();
+  const cls = $('#classFilter').value;
+  const box = $('#results');
+  if(!q && !cls){ box.style.display='none'; return; }
+  let matches = basicList.filter(s=> (!q || s.name.toLowerCase().includes(q)) && (!cls || s.className===cls) );
+  matches.sort((a,b)=> a.className===b.className ? a.name.localeCompare(b.name) : a.className.localeCompare(b.className));
+  matches = matches.slice(0,30);
+  box.innerHTML = matches.map(s=>`<div data-id="${s.id}"><span>${s.name}</span><span class="cls">${s.className} · ${s.rarity}★</span></div>`).join('') || '<div style="color:var(--muted);cursor:default;">No matches</div>';
+  box.style.display='block';
+}
+$('#searchInput').addEventListener('input', updateResults);
+$('#classFilter').addEventListener('change', updateResults);
+
+$('#results').addEventListener('click', async e=>{
+  const row = e.target.closest('div[data-id]');
+  if(!row) return;
+  await addServant(parseInt(row.dataset.id));
+  $('#searchInput').value='';
+  $('#classFilter').value='';
+  $('#results').style.display='none';
+});
+
+$('#modeSingle').addEventListener('click', ()=>setMode('single'));
+$('#modeRoster').addEventListener('click', ()=>setMode('roster'));
+
+function setMode(m){
+  state.mode = m;
+  $('#modeSingle').classList.toggle('active', m==='single');
+  $('#modeRoster').classList.toggle('active', m==='roster');
+  if(m==='single' && state.servants.length>1){
+    state.servants = state.servants.slice(-1);
+    state.selected = state.servants[0]?.id ?? null;
+  }
+  save(); render();
+}
+
+async function addServant(id){
+  if(!state.servants.some(s=>s.id===id)){
+    await fetchServant(id);
+    const entry = {id, ascReached:[false,false,false,false], skillCurrent:[1,1,1], skillTarget:10};
+    if(state.mode==='single') state.servants = [entry];
+    else state.servants.push(entry);
+  }
+  state.selected = id;
+  save(); render();
+}
+
+function removeServant(id){
+  state.servants = state.servants.filter(s=>s.id!==id);
+  if(state.selected===id) state.selected = state.servants[0]?.id ?? null;
+  save(); render();
+}
+
+function materialsFor(entry){
+  const data = svtCache[entry.id];
+  const need = {}; let qp = 0;
+  const add = (item, amt) => {
+    if(!need[item.id]) need[item.id] = {name:item.name, icon:item.icon, amount:0};
+    need[item.id].amount += amt;
+  };
+  entry.ascReached.forEach((reached, i)=>{
+    if(reached) return;
+    const tier = data.ascensionMaterials[i+1];
+    if(tier){ tier.items.forEach(it=>add(it.item, it.amount)); qp += tier.qp||0; }
+  });
+  entry.skillCurrent.forEach(cur=>{
+    for(let lvl=cur; lvl<entry.skillTarget; lvl++){
+      const tier = data.skillMaterials[lvl];
+      if(tier){ tier.items.forEach(it=>add(it.item, it.amount)); qp += tier.qp||0; }
+    }
+  });
+  return {need, qp};
+}
+
+function mergeMaterials(list){
+  const out = {}; let qp = 0;
+  list.forEach(({need, qp:q})=>{
+    qp += q;
+    Object.entries(need).forEach(([id,v])=>{
+      if(!out[id]) out[id] = {name:v.name, icon:v.icon, amount:0};
+      out[id].amount += v.amount;
+    });
+  });
+  return {need:out, qp};
+}
+
+function renderMaterialTable(need){
+  const rows = Object.entries(need).sort((a,b)=>b[1].amount-a[1].amount);
+  if(!rows.length) return `<div class="empty">All selected stages already reached — nothing needed.</div>`;
+  return `<table><thead><tr><th>Material</th><th class="num">Needed</th><th class="num">Owned</th><th class="num">Remaining</th></tr></thead><tbody>
+    ${rows.map(([id,v])=>{
+      const owned = inventory[id]||0;
+      const remaining = Math.max(0, v.amount - owned);
+      return `<tr>
+        <td class="mat">${v.icon?`<img src="${v.icon}">`:''}${v.name}</td>
+        <td class="num">${v.amount}</td>
+        <td class="num"><input class="own" type="number" min="0" value="${owned}" data-item="${id}"></td>
+        <td class="num ${remaining===0?'done':'deficit'}">${remaining===0?'✓ done':remaining}</td>
+      </tr>`;
+    }).join('')}
+  </tbody></table>`;
+}
+
+function faceFor(id, data){
+  const basicEntry = basicList && basicList.find(b=>b.id===id);
+  if(basicEntry && basicEntry.face) return basicEntry.face;
+  const asc = data && data.extraAssets && data.extraAssets.faces && data.extraAssets.faces.ascension;
+  if(asc){ const v = Object.values(asc); if(v.length) return v[0]; }
+  return '';
+}
+
+function tabstripHtml(){
+  let html = state.servants.map(s=>{
+    const data = svtCache[s.id];
+    if(!data) return '';
+    const active = state.selected===s.id ? 'active':'';
+    const face = faceFor(s.id, data);
+    return `<div class="tab ${active}" data-tab="${s.id}">
+      <span class="x" data-remove="${s.id}">✕</span>
+      ${face?`<img src="${face}" alt="">`:'<div style="width:48px;height:48px;border-radius:6px;background:var(--panel2);"></div>'}
+      <span class="tname">${data.name}</span>
+    </div>`;
+  }).join('');
+  if(state.mode==='roster' && state.servants.length>1){
+    const active = state.selected===COMBINED ? 'active':'';
+    html += `<div class="tab combined ${active}" data-tab="${COMBINED}">
+      <span class="icon">Σ</span>
+      <span class="tname">Combined Total</span>
+    </div>`;
+  }
+  return html;
+}
+
+function detailHtmlFor(entry){
+  const data = svtCache[entry.id];
+  const ascLabels = ['1st','2nd','3rd','4th (max)'];
+  const {need, qp} = materialsFor(entry);
+  return `<div class="detail" data-svt="${entry.id}">
+    <div class="card-head">
+      <div><h3>${data.name}</h3><div class="meta">${data.className} · ${data.rarity}★</div></div>
+      <button class="remove" data-remove="${entry.id}">remove</button>
+    </div>
+    <div class="section-label">Ascensions reached</div>
+    <div class="asc-row">
+      ${ascLabels.map((l,i)=>`<label><input type="checkbox" data-asc="${i}" ${entry.ascReached[i]?'checked':''}> ${l}</label>`).join('')}
+    </div>
+    <div class="section-label">Skill levels</div>
+    <div class="skill-grid">
+      ${[0,1,2].map(i=>`<div class="skill-box"><label>Skill ${i+1} — current lvl</label><input type="number" min="1" max="10" data-skill="${i}" value="${entry.skillCurrent[i]}"></div>`).join('')}
+    </div>
+    <div class="target-row">Target level for all skills:
+      <select data-target>${[...Array(10)].map((_,i)=>`<option value="${i+1}" ${entry.skillTarget===i+1?'selected':''}>${i+1}</option>`).join('')}</select>
+    </div>
+    <div class="section-label">Materials still needed</div>
+    ${renderMaterialTable(need)}
+    <div class="qp-line">QP needed: ${qp.toLocaleString()}</div>
+  </div>`;
+}
+
+function combinedDetailHtml(){
+  const all = state.servants.map(materialsFor);
+  const {need, qp} = mergeMaterials(all);
+  return `<div class="detail">
+    <div class="card-head"><h3>Combined shopping list</h3><div class="meta">${state.servants.length} servants</div></div>
+    ${renderMaterialTable(need)}
+    <div class="qp-line">Total QP needed: ${qp.toLocaleString()}</div>
+  </div>`;
+}
+
+function render(){
+  const stripEl = $('#tabstrip');
+  const detailEl = $('#detail');
+  if(!state.servants.length){
+    stripEl.innerHTML = '';
+    detailEl.innerHTML = `<div class="empty">Search above to ${state.mode==='single'?'pick a servant to track':'start building your roster'}.</div>`;
+    return;
+  }
+  if(state.selected==null || (state.selected!==COMBINED && !state.servants.some(s=>s.id===state.selected))){
+    state.selected = state.servants[0].id;
+  }
+  stripEl.innerHTML = `<div class="tabstrip">${tabstripHtml()}</div>`;
+  const entry = state.selected===COMBINED ? null : state.servants.find(s=>s.id===state.selected);
+  detailEl.innerHTML = entry ? detailHtmlFor(entry) : combinedDetailHtml();
+
+  stripEl.querySelectorAll('[data-tab]').forEach(t=>t.addEventListener('click', e=>{
+    if(e.target.closest('[data-remove]')) return;
+    const id = t.dataset.tab;
+    state.selected = id===COMBINED ? COMBINED : parseInt(id);
+    save(); render();
+  }));
+  document.querySelectorAll('[data-remove]').forEach(b=>b.addEventListener('click', e=>{
+    e.stopPropagation();
+    removeServant(parseInt(b.dataset.remove));
+  }));
+  const d = document.querySelector('.detail[data-svt]');
+  if(d){
+    const id = parseInt(d.dataset.svt);
+    const ent = state.servants.find(s=>s.id===id);
+    d.querySelectorAll('[data-asc]').forEach(cb=>cb.addEventListener('change',e=>{
+      ent.ascReached[parseInt(e.target.dataset.asc)] = e.target.checked;
+      save(); render();
+    }));
+    d.querySelectorAll('[data-skill]').forEach(inp=>inp.addEventListener('change',e=>{
+      ent.skillCurrent[parseInt(e.target.dataset.skill)] = Math.max(1, Math.min(10, parseInt(e.target.value)||1));
+      save(); render();
+    }));
+    d.querySelectorAll('[data-target]').forEach(sel=>sel.addEventListener('change',e=>{
+      ent.skillTarget = parseInt(e.target.value);
+      save(); render();
+    }));
+  }
+  document.querySelectorAll('input.own').forEach(inp=>inp.addEventListener('change',e=>{
+    inventory[e.target.dataset.item] = Math.max(0, parseInt(e.target.value)||0);
+    save(); render();
+  }));
+}
+
+(async function init(){
+  setMode(state.mode||'single');
+  await ensureBasicList();
+  if(state.servants.length){
+    statusEl.textContent = 'Loading saved servants…';
+    for(const s of state.servants) await fetchServant(s.id);
+    statusEl.textContent = '';
+  }
+  render();
+})();
+</script>
+</body>
+</html>
