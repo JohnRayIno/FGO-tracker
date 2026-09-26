@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chaldea Ledger — Servant Material Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header>
+  <h1>CHALDEA LEDGER</h1>
+  <p>Servant ascension &amp; skill material tracker — live data from Atlas Academy</p>
+</header>
+<div class="wrap">
+  <div class="modes">
+    <button id="modeSingle" class="active">Single Servant</button>
+    <button id="modeRoster">Full Roster</button>
+  </div>
+  <div class="search">
+    <div style="display:flex;gap:8px;">
+      <input id="searchInput" type="text" placeholder="Search a servant by name…" autocomplete="off" style="flex:1;">
+      <select id="classFilter">
+        <option value="">All classes</option>
+        <option value="saber">Saber</option>
+        <option value="archer">Archer</option>
+        <option value="lancer">Lancer</option>
+        <option value="rider">Rider</option>
+        <option value="caster">Caster</option>
+        <option value="assassin">Assassin</option>
+        <option value="berserker">Berserker</option>
+        <option value="shielder">Shielder</option>
+        <option value="ruler">Ruler</option>
+        <option value="alterEgo">Alter Ego</option>
+        <option value="avenger">Avenger</option>
+        <option value="moonCancer">Moon Cancer</option>
+        <option value="foreigner">Foreigner</option>
+        <option value="pretender">Pretender</option>
+      </select>
+    </div>
+    <div id="results" class="results" style="display:none;"></div>
+  </div>
+  <div id="status" class="status"></div>
+  <div id="tabstrip"></div>
+  <div id="detail"></div>
+</div>
+
+<script src="api.js"></script>
+<script src="state.js"></script>
+<script src="materials.js"></script>
+<script src="ui.js"></script>
+</body>
+</html>

@@ -1,0 +1,164 @@
+// ---- Rendering ----
+function renderMaterialTable(need){
+  const rows = Object.entries(need).sort((a,b)=>b[1].amount-a[1].amount);
+  if(!rows.length) return `<div class="empty">All selected stages already reached — nothing needed.</div>`;
+  return `<table><thead><tr><th>Material</th><th class="num">Needed</th><th class="num">Owned</th><th class="num">Remaining</th></tr></thead><tbody>
+    ${rows.map(([id,v])=>{
+      const owned = inventory[id]||0;
+      const remaining = Math.max(0, v.amount - owned);
+      return `<tr>
+        <td class="mat">${v.icon?`<img src="${v.icon}">`:''}${v.name}</td>
+        <td class="num">${v.amount}</td>
+        <td class="num"><input class="own" type="number" min="0" value="${owned}" data-item="${id}"></td>
+        <td class="num ${remaining===0?'done':'deficit'}">${remaining===0?'✓ done':remaining}</td>
+      </tr>`;
+    }).join('')}
+  </tbody></table>`;
+}
+
+function tabstripHtml(){
+  let html = state.servants.map(s=>{
+    const data = svtCache[s.id];
+    if(!data) return '';
+    const active = state.selected===s.id ? 'active':'';
+    const face = faceFor(s.id, data);
+    return `<div class="tab ${active}" data-tab="${s.id}">
+      <span class="x" data-remove="${s.id}">✕</span>
+      ${face?`<img src="${face}" alt="">`:'<div style="width:48px;height:48px;border-radius:6px;background:var(--panel2);"></div>'}
+      <span class="tname">${data.name}</span>
+    </div>`;
+  }).join('');
+  if(state.mode==='roster' && state.servants.length>1){
+    const active = state.selected===COMBINED ? 'active':'';
+    html += `<div class="tab combined ${active}" data-tab="${COMBINED}">
+      <span class="icon">Σ</span>
+      <span class="tname">Combined Total</span>
+    </div>`;
+  }
+  return html;
+}
+
+function detailHtmlFor(entry){
+  const data = svtCache[entry.id];
+  const ascLabels = ['1st','2nd','3rd','4th (max)'];
+  const {need, qp} = materialsFor(entry);
+  return `<div class="detail" data-svt="${entry.id}">
+    <div class="card-head">
+      <div><h3>${data.name}</h3><div class="meta">${data.className} · ${data.rarity}★</div></div>
+      <button class="remove" data-remove="${entry.id}">remove</button>
+    </div>
+    <div class="section-label">Ascensions reached</div>
+    <div class="asc-row">
+      ${ascLabels.map((l,i)=>`<label><input type="checkbox" data-asc="${i}" ${entry.ascReached[i]?'checked':''}> ${l}</label>`).join('')}
+    </div>
+    <div class="section-label">Skill levels</div>
+    <div class="skill-grid">
+      ${[0,1,2].map(i=>`<div class="skill-box"><label>Skill ${i+1} — current lvl</label><input type="number" min="1" max="10" data-skill="${i}" value="${entry.skillCurrent[i]}"></div>`).join('')}
+    </div>
+    <div class="target-row">Target level for all skills:
+      <select data-target>${[...Array(10)].map((_,i)=>`<option value="${i+1}" ${entry.skillTarget===i+1?'selected':''}>${i+1}</option>`).join('')}</select>
+    </div>
+    <div class="section-label">Materials still needed</div>
+    ${renderMaterialTable(need)}
+    <div class="qp-line">QP needed: ${qp.toLocaleString()}</div>
+  </div>`;
+}
+
+function combinedDetailHtml(){
+  const all = state.servants.map(materialsFor);
+  const {need, qp} = mergeMaterials(all);
+  return `<div class="detail">
+    <div class="card-head"><h3>Combined shopping list</h3><div class="meta">${state.servants.length} servants</div></div>
+    ${renderMaterialTable(need)}
+    <div class="qp-line">Total QP needed: ${qp.toLocaleString()}</div>
+  </div>`;
+}
+
+function render(){
+  const stripEl = $('#tabstrip');
+  const detailEl = $('#detail');
+  if(!state.servants.length){
+    stripEl.innerHTML = '';
+    detailEl.innerHTML = `<div class="empty">Search above to ${state.mode==='single'?'pick a servant to track':'start building your roster'}.</div>`;
+    return;
+  }
+  if(state.selected==null || (state.selected!==COMBINED && !state.servants.some(s=>s.id===state.selected))){
+    state.selected = state.servants[0].id;
+  }
+  stripEl.innerHTML = `<div class="tabstrip">${tabstripHtml()}</div>`;
+  const entry = state.selected===COMBINED ? null : state.servants.find(s=>s.id===state.selected);
+  detailEl.innerHTML = entry ? detailHtmlFor(entry) : combinedDetailHtml();
+
+  stripEl.querySelectorAll('[data-tab]').forEach(t=>t.addEventListener('click', e=>{
+    if(e.target.closest('[data-remove]')) return;
+    const id = t.dataset.tab;
+    state.selected = id===COMBINED ? COMBINED : parseInt(id);
+    save(); render();
+  }));
+  document.querySelectorAll('[data-remove]').forEach(b=>b.addEventListener('click', e=>{
+    e.stopPropagation();
+    removeServant(parseInt(b.dataset.remove));
+  }));
+  const d = document.querySelector('.detail[data-svt]');
+  if(d){
+    const id = parseInt(d.dataset.svt);
+    const ent = state.servants.find(s=>s.id===id);
+    d.querySelectorAll('[data-asc]').forEach(cb=>cb.addEventListener('change',e=>{
+      ent.ascReached[parseInt(e.target.dataset.asc)] = e.target.checked;
+      save(); render();
+    }));
+    d.querySelectorAll('[data-skill]').forEach(inp=>inp.addEventListener('change',e=>{
+      ent.skillCurrent[parseInt(e.target.dataset.skill)] = Math.max(1, Math.min(10, parseInt(e.target.value)||1));
+      save(); render();
+    }));
+    d.querySelectorAll('[data-target]').forEach(sel=>sel.addEventListener('change',e=>{
+      ent.skillTarget = parseInt(e.target.value);
+      save(); render();
+    }));
+  }
+  document.querySelectorAll('input.own').forEach(inp=>inp.addEventListener('change',e=>{
+    inventory[e.target.dataset.item] = Math.max(0, parseInt(e.target.value)||0);
+    save(); render();
+  }));
+}
+
+// ---- Search / class filter ----
+async function updateResults(){
+  await ensureBasicList();
+  const q = $('#searchInput').value.trim().toLowerCase();
+  const cls = $('#classFilter').value;
+  const box = $('#results');
+  if(!q && !cls){ box.style.display='none'; return; }
+  let matches = basicList.filter(s=> (!q || s.name.toLowerCase().includes(q)) && (!cls || s.className===cls) );
+  matches.sort((a,b)=> a.className===b.className ? a.name.localeCompare(b.name) : a.className.localeCompare(b.className));
+  matches = matches.slice(0,30);
+  box.innerHTML = matches.map(s=>`<div data-id="${s.id}"><span>${s.name}</span><span class="cls">${s.className} · ${s.rarity}★</span></div>`).join('') || '<div style="color:var(--muted);cursor:default;">No matches</div>';
+  box.style.display='block';
+}
+
+$('#searchInput').addEventListener('input', updateResults);
+$('#classFilter').addEventListener('change', updateResults);
+
+$('#results').addEventListener('click', async e=>{
+  const row = e.target.closest('div[data-id]');
+  if(!row) return;
+  await addServant(parseInt(row.dataset.id));
+  $('#searchInput').value='';
+  $('#classFilter').value='';
+  $('#results').style.display='none';
+});
+
+$('#modeSingle').addEventListener('click', ()=>setMode('single'));
+$('#modeRoster').addEventListener('click', ()=>setMode('roster'));
+
+// ---- Init ----
+(async function init(){
+  setMode(state.mode||'single');
+  await ensureBasicList();
+  if(state.servants.length){
+    statusEl.textContent = 'Loading saved servants…';
+    for(const s of state.servants) await fetchServant(s.id);
+    statusEl.textContent = '';
+  }
+  render();
+})();
