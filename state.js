@@ -2,6 +2,11 @@
 const COMBINED = 'combined';
 
 let state = JSON.parse(localStorage.getItem('cl_state')||'null') || {mode:'single', servants:[], selected:null};
+// Back-fill append-skill fields for servants saved before that feature existed.
+state.servants.forEach(s=>{
+  if(!s.appendCurrent) s.appendCurrent = [1,1,1];
+  if(!s.appendTarget) s.appendTarget = 10;
+});
 let inventory = JSON.parse(localStorage.getItem('cl_inventory')||'{}');
 
 function save(){
@@ -23,7 +28,7 @@ function setMode(m){
 async function addServant(id){
   if(!state.servants.some(s=>s.id===id)){
     await fetchServant(id);
-    const entry = {id, ascReached:[false,false,false,false], skillCurrent:[1,1,1], skillTarget:10};
+    const entry = {id, ascReached:[false,false,false,false], skillCurrent:[1,1,1], skillTarget:10, appendCurrent:[1,1,1], appendTarget:10};
     if(state.mode==='single') state.servants = [entry];
     else state.servants.push(entry);
   }

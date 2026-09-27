@@ -17,7 +17,29 @@ function materialsFor(entry){
       if(tier){ tier.items.forEach(it=>add(it.item, it.amount)); qp += tier.qp||0; }
     }
   });
+  entry.appendCurrent.forEach(cur=>{
+    for(let lvl=cur; lvl<entry.appendTarget; lvl++){
+      const tier = data.appendSkillMaterials && data.appendSkillMaterials[lvl];
+      if(tier){ tier.items.forEach(it=>add(it.item, it.amount)); qp += tier.qp||0; }
+    }
+  });
   return {need, qp};
+}
+
+// Reverse lookup: itemId -> [{name of servant, amount that servant needs}], across ALL tracked servants.
+// Used for bottleneck highlighting and the click-to-expand breakdown, regardless of which tab is open.
+function computeBreakdown(){
+  const map = {};
+  state.servants.forEach(entry=>{
+    const data = svtCache[entry.id];
+    if(!data) return;
+    const {need} = materialsFor(entry);
+    Object.entries(need).forEach(([id,v])=>{
+      if(!map[id]) map[id] = [];
+      map[id].push({name: data.name, amount: v.amount});
+    });
+  });
+  return map;
 }
 
 function mergeMaterials(list){

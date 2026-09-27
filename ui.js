@@ -1,16 +1,25 @@
 // ---- Rendering ----
 function renderMaterialTable(need){
-  const rows = Object.entries(need).sort((a,b)=>b[1].amount-a[1].amount);
+  const breakdown = computeBreakdown();
+  const rows = Object.entries(need).sort((a,b)=>{
+    const ca = (breakdown[a[0]]||[]).length, cb = (breakdown[b[0]]||[]).length;
+    return cb!==ca ? cb-ca : b[1].amount-a[1].amount;
+  });
   if(!rows.length) return `<div class="empty">All selected stages already reached — nothing needed.</div>`;
   return `<table><thead><tr><th>Material</th><th class="num">Needed</th><th class="num">Owned</th><th class="num">Remaining</th></tr></thead><tbody>
     ${rows.map(([id,v])=>{
       const owned = inventory[id]||0;
       const remaining = Math.max(0, v.amount - owned);
-      return `<tr>
-        <td class="mat">${v.icon?`<img src="${v.icon}">`:''}${v.name}</td>
+      const uses = breakdown[id]||[];
+      const multi = uses.length>1;
+      return `<tr class="matrow ${multi?'bottleneck':''}" data-item-row="${id}">
+        <td class="mat">${v.icon?`<img src="${v.icon}">`:''}${v.name}${multi?`<span class="needcount">needed by ${uses.length} servants</span>`:''}</td>
         <td class="num">${v.amount}</td>
         <td class="num"><input class="own" type="number" min="0" value="${owned}" data-item="${id}"></td>
         <td class="num ${remaining===0?'done':'deficit'}">${remaining===0?'✓ done':remaining}</td>
+      </tr>
+      <tr class="breakdown-row" data-breakdown="${id}" style="display:none;">
+        <td colspan="4">${uses.map(u=>`${u.name}: ${u.amount}`).join(' &nbsp;·&nbsp; ') || 'Not needed by any tracked servant right now.'}</td>
       </tr>`;
     }).join('')}
   </tbody></table>`;
@@ -57,6 +66,13 @@ function detailHtmlFor(entry){
     </div>
     <div class="target-row">Target level for all skills:
       <select data-target>${[...Array(10)].map((_,i)=>`<option value="${i+1}" ${entry.skillTarget===i+1?'selected':''}>${i+1}</option>`).join('')}</select>
+    </div>
+    <div class="section-label">Append skill levels</div>
+    <div class="skill-grid">
+      ${[0,1,2].map(i=>`<div class="skill-box"><label>Append ${i+1} — current lvl</label><input type="number" min="1" max="10" data-append="${i}" value="${entry.appendCurrent[i]}"></div>`).join('')}
+    </div>
+    <div class="target-row">Target level for all append skills:
+      <select data-appendtarget>${[...Array(10)].map((_,i)=>`<option value="${i+1}" ${entry.appendTarget===i+1?'selected':''}>${i+1}</option>`).join('')}</select>
     </div>
     <div class="section-label">Materials still needed</div>
     ${renderMaterialTable(need)}
@@ -115,10 +131,24 @@ function render(){
       ent.skillTarget = parseInt(e.target.value);
       save(); render();
     }));
+    d.querySelectorAll('[data-append]').forEach(inp=>inp.addEventListener('change',e=>{
+      ent.appendCurrent[parseInt(e.target.dataset.append)] = Math.max(1, Math.min(10, parseInt(e.target.value)||1));
+      save(); render();
+    }));
+    d.querySelectorAll('[data-appendtarget]').forEach(sel=>sel.addEventListener('change',e=>{
+      ent.appendTarget = parseInt(e.target.value);
+      save(); render();
+    }));
   }
   document.querySelectorAll('input.own').forEach(inp=>inp.addEventListener('change',e=>{
     inventory[e.target.dataset.item] = Math.max(0, parseInt(e.target.value)||0);
     save(); render();
+  }));
+  document.querySelectorAll('.matrow').forEach(tr=>tr.addEventListener('click', e=>{
+    if(e.target.closest('input')) return;
+    const id = tr.dataset.itemRow;
+    const br = document.querySelector(`[data-breakdown="${id}"]`);
+    if(br) br.style.display = br.style.display==='none' ? 'table-row' : 'none';
   }));
 }
 
@@ -150,6 +180,62 @@ $('#results').addEventListener('click', async e=>{
 
 $('#modeSingle').addEventListener('click', ()=>setMode('single'));
 $('#modeRoster').addEventListener('click', ()=>setMode('roster'));
+
+// ---- Themed modal (replaces native prompt/alert for import/export) ----
+function openModal({title, desc, value, readonly, primaryLabel, onPrimary}){
+  $('#modalTitle').textContent = title;
+  $('#modalDesc').textContent = desc;
+  $('#modalDesc').style.color = 'var(--muted)';
+  const ta = $('#modalTextarea');
+  ta.value = value;
+  ta.readOnly = !!readonly;
+  const primary = $('#modalPrimary');
+  primary.textContent = primaryLabel;
+  $('#modalOverlay').style.display = 'flex';
+  ta.focus(); ta.select();
+  primary.onclick = ()=>onPrimary(ta.value, primary);
+}
+function closeModal(){ $('#modalOverlay').style.display = 'none'; }
+$('#modalSecondary').addEventListener('click', closeModal);
+$('#modalOverlay').addEventListener('click', e=>{ if(e.target.id==='modalOverlay') closeModal(); });
+
+// ---- Inventory import/export ----
+$('#exportInv').addEventListener('click', ()=>{
+  const json = JSON.stringify(inventory, null, 2);
+  openModal({
+    title: 'Export inventory',
+    desc: 'Copy this and save it somewhere — paste it back in later with Import.',
+    value: json,
+    readonly: true,
+    primaryLabel: 'Copy',
+    onPrimary: async (val, btn)=>{
+      try{ await navigator.clipboard.writeText(val); }
+      catch(e){ $('#modalTextarea').select(); document.execCommand('copy'); }
+      btn.textContent = 'Copied!';
+      setTimeout(closeModal, 500);
+    }
+  });
+});
+
+$('#importInv').addEventListener('click', ()=>{
+  openModal({
+    title: 'Import inventory',
+    desc: 'Paste a previously exported inventory JSON below, then Apply.',
+    value: '',
+    readonly: false,
+    primaryLabel: 'Apply',
+    onPrimary: (val)=>{
+      try{
+        inventory = JSON.parse(val);
+        save(); render();
+        closeModal();
+      }catch(e){
+        $('#modalDesc').textContent = 'That did not look like valid JSON — nothing was changed. Try again or Cancel.';
+        $('#modalDesc').style.color = 'var(--red)';
+      }
+    }
+  });
+});
 
 // ---- Init ----
 (async function init(){
