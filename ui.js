@@ -101,53 +101,76 @@ function render(){
   if(state.selected==null || (state.selected!==COMBINED && !state.servants.some(s=>s.id===state.selected))){
     state.selected = state.servants[0].id;
   }
+  // Full rebuild — only needed when the roster itself changed (add/remove/mode switch/init).
   stripEl.innerHTML = `<div class="tabstrip">${tabstripHtml()}</div>`;
-  const entry = state.selected===COMBINED ? null : state.servants.find(s=>s.id===state.selected);
-  detailEl.innerHTML = entry ? detailHtmlFor(entry) : combinedDetailHtml();
-
   stripEl.querySelectorAll('[data-tab]').forEach(t=>t.addEventListener('click', e=>{
     if(e.target.closest('[data-remove]')) return;
     const id = t.dataset.tab;
     state.selected = id===COMBINED ? COMBINED : parseInt(id);
-    save(); render();
+    save();
+    updateTabActiveStates();
+    renderDetail();
   }));
-  document.querySelectorAll('[data-remove]').forEach(b=>b.addEventListener('click', e=>{
+  stripEl.querySelectorAll('[data-remove]').forEach(b=>b.addEventListener('click', e=>{
     e.stopPropagation();
     removeServant(parseInt(b.dataset.remove));
   }));
-  const d = document.querySelector('.detail[data-svt]');
+  renderDetail();
+}
+
+// Just flips the active tab's highlight — doesn't touch the DOM tree, so portrait <img>s
+// already in the tab strip are never recreated or re-fetched.
+function updateTabActiveStates(){
+  document.querySelectorAll('#tabstrip .tab').forEach(t=>{
+    const isActive = state.selected===COMBINED ? t.classList.contains('combined') : t.dataset.tab===String(state.selected);
+    t.classList.toggle('active', isActive);
+  });
+}
+
+// Rebuilds only the panel below the tabs — ascension/skill controls and the materials table.
+// This is the part that actually changes on a tab click or an input edit, so it's the only
+// thing that needs to re-render; the tab strip (and its images) stays untouched.
+function renderDetail(){
+  const detailEl = $('#detail');
+  const entry = state.selected===COMBINED ? null : state.servants.find(s=>s.id===state.selected);
+  detailEl.innerHTML = entry ? detailHtmlFor(entry) : combinedDetailHtml();
+
+  const removeBtn = detailEl.querySelector('button[data-remove]');
+  if(removeBtn) removeBtn.addEventListener('click', ()=>removeServant(parseInt(removeBtn.dataset.remove)));
+
+  const d = detailEl.querySelector('.detail[data-svt]');
   if(d){
     const id = parseInt(d.dataset.svt);
     const ent = state.servants.find(s=>s.id===id);
     d.querySelectorAll('[data-asc]').forEach(cb=>cb.addEventListener('change',e=>{
       ent.ascReached[parseInt(e.target.dataset.asc)] = e.target.checked;
-      save(); render();
+      save(); renderDetail();
     }));
     d.querySelectorAll('[data-skill]').forEach(inp=>inp.addEventListener('change',e=>{
       ent.skillCurrent[parseInt(e.target.dataset.skill)] = Math.max(1, Math.min(10, parseInt(e.target.value)||1));
-      save(); render();
+      save(); renderDetail();
     }));
     d.querySelectorAll('[data-target]').forEach(sel=>sel.addEventListener('change',e=>{
       ent.skillTarget = parseInt(e.target.value);
-      save(); render();
+      save(); renderDetail();
     }));
     d.querySelectorAll('[data-append]').forEach(inp=>inp.addEventListener('change',e=>{
       ent.appendCurrent[parseInt(e.target.dataset.append)] = Math.max(1, Math.min(10, parseInt(e.target.value)||1));
-      save(); render();
+      save(); renderDetail();
     }));
     d.querySelectorAll('[data-appendtarget]').forEach(sel=>sel.addEventListener('change',e=>{
       ent.appendTarget = parseInt(e.target.value);
-      save(); render();
+      save(); renderDetail();
     }));
   }
-  document.querySelectorAll('input.own').forEach(inp=>inp.addEventListener('change',e=>{
+  detailEl.querySelectorAll('input.own').forEach(inp=>inp.addEventListener('change',e=>{
     inventory[e.target.dataset.item] = Math.max(0, parseInt(e.target.value)||0);
-    save(); render();
+    save(); renderDetail();
   }));
-  document.querySelectorAll('.matrow').forEach(tr=>tr.addEventListener('click', e=>{
+  detailEl.querySelectorAll('.matrow').forEach(tr=>tr.addEventListener('click', e=>{
     if(e.target.closest('input')) return;
     const id = tr.dataset.itemRow;
-    const br = document.querySelector(`[data-breakdown="${id}"]`);
+    const br = detailEl.querySelector(`[data-breakdown="${id}"]`);
     if(br) br.style.display = br.style.display==='none' ? 'table-row' : 'none';
   }));
 }

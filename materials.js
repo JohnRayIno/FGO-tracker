@@ -1,5 +1,11 @@
 // ---- Material calculations ----
+// Cached per-entry (keyed by object identity + a signature of its own inputs) so re-rendering
+// the same servant repeatedly — e.g. just toggling which tab is active — doesn't recompute from scratch.
+const _matCache = new WeakMap();
 function materialsFor(entry){
+  const sig = entry.ascReached.join('')+'|'+entry.skillCurrent.join(',')+'|'+entry.skillTarget+'|'+entry.appendCurrent.join(',')+'|'+entry.appendTarget;
+  const cached = _matCache.get(entry);
+  if(cached && cached.sig===sig) return cached.result;
   const data = svtCache[entry.id];
   const need = {}; let qp = 0;
   const add = (item, amt) => {
@@ -23,7 +29,9 @@ function materialsFor(entry){
       if(tier){ tier.items.forEach(it=>add(it.item, it.amount)); qp += tier.qp||0; }
     }
   });
-  return {need, qp};
+  const result = {need, qp};
+  _matCache.set(entry, {sig, result});
+  return result;
 }
 
 // Reverse lookup: itemId -> [{name of servant, amount that servant needs}], across ALL tracked servants.
