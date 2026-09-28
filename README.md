@@ -1,6 +1,6 @@
-# Chaldea Ledger
+# Fate Tracker
 
-Chaldea Ledger is a lightweight Fate/Grand Order servant material tracker. It helps you compare what each servant still needs for ascension, skill leveling, and append skill progression, and it can also show the combined shopping list for your entire roster.
+Fate Tracker is a lightweight Fate/Grand Order servant material tracker. It helps you compare what each servant still needs for ascension, skill leveling, and append skill progression, and it can also show the combined shopping list for your entire roster.
 
 ## Features
 
@@ -18,6 +18,8 @@ Chaldea Ledger is a lightweight Fate/Grand Order servant material tracker. It he
 ## Getting Started
 
 No build tools or package installation are required.
+
+Live site: [fgo-tracker-kohl.vercel.app](https://fgo-tracker-kohl.vercel.app/)
 
 1. Clone or download this repository.
 2. Serve the project with a local static web server.
