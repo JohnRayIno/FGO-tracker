@@ -54,14 +54,16 @@ An internet connection is required the first time servant data is loaded. After 
 
 ## Project Structure
 
-| File | Purpose |
+The project uses a lightweight feature-driven structure while remaining a static browser app with no build step:
+
+| Path | Purpose |
 | --- | --- |
 | `index.html` | Application shell and page markup |
-| `styles.css` | Layout, colors, typography, and responsive styling |
-| `api.js` | Atlas Academy requests and local cache handling |
-| `state.js` | Tracker state, roster behavior, and persistence |
-| `materials.js` | Ascension, skill, append-skill, and combined material calculations |
-| `ui.js` | Rendering, search, controls, tab switching, and modal UI |
+| `shared/styles.css` | Shared layout, colors, typography, and responsive styling |
+| `features/servants/api.js` | Atlas Academy requests, region selection, and servant-data caching |
+| `features/progression/materials.js` | Ascension, skill, append-skill, and combined material calculations |
+| `features/tracker/state.js` | Tracker state, roster behavior, and persistence |
+| `features/tracker/ui.js` | Rendering, search, controls, tab switching, and modal UI |
 
 ## Local Storage
 
