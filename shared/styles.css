@@ -616,3 +616,91 @@ input.own {
   font-size: .68rem;
   letter-spacing: .04em;
 }
+
+@media (max-width: 700px) {
+  header {
+    padding: 22px 18px 16px;
+  }
+
+  header p {
+    line-height: 1.4;
+  }
+
+  .wrap {
+    padding: 18px 14px 40px;
+  }
+
+  .modes {
+    align-items: stretch;
+  }
+
+  .modes span {
+    display: none;
+  }
+
+  .modes button {
+    flex: 1 1 calc(50% - 4px);
+    padding: 8px 10px;
+  }
+
+  .modes button.reset {
+    flex: 1 1 calc(50% - 4px);
+  }
+
+  .search > div:first-child {
+    flex-direction: column;
+  }
+
+  .search input,
+  .search select {
+    min-height: 42px;
+  }
+
+  .skill-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .target-row {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .detail {
+    padding: 16px 12px;
+  }
+
+  .card-head {
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .card-head h3 {
+    overflow-wrap: anywhere;
+  }
+
+  .section-label {
+    line-height: 1.4;
+  }
+
+  .copylist-btn {
+    margin-left: 0;
+    margin-top: 8px;
+  }
+
+  .section-label[style] {
+    align-items: flex-start !important;
+    flex-wrap: wrap;
+  }
+
+  .mat-wrap {
+    overflow-x: auto;
+  }
+
+  .mat-wrap table {
+    min-width: 560px;
+  }
+
+  .footer {
+    padding: 18px 14px 30px;
+  }
+}
