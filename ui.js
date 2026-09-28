@@ -6,13 +6,15 @@ function renderMaterialTable(need){
     return cb!==ca ? cb-ca : b[1].amount-a[1].amount;
   });
   if(!rows.length) return `<div class="empty">All selected stages already reached — nothing needed.</div>`;
-  return `<table><thead><tr><th>Material</th><th class="num">Needed</th><th class="num">Owned</th><th class="num">Remaining</th></tr></thead><tbody>
+  return `<div class="mat-wrap">
+  <input class="mat-filter" data-matfilter placeholder="Filter materials by name…">
+  <table><thead><tr><th>Material</th><th class="num">Needed</th><th class="num">Owned</th><th class="num">Remaining</th></tr></thead><tbody>
     ${rows.map(([id,v])=>{
       const owned = inventory[id]||0;
       const remaining = Math.max(0, v.amount - owned);
       const uses = breakdown[id]||[];
       const multi = uses.length>1;
-      return `<tr class="matrow ${multi?'bottleneck':''}" data-item-row="${id}">
+      return `<tr class="matrow ${multi?'bottleneck':''}" data-item-row="${id}" data-matname="${v.name.toLowerCase()}">
         <td class="mat">${v.icon?`<img src="${v.icon}">`:''}${v.name}${multi?`<span class="needcount">needed by ${uses.length} servants</span>`:''}</td>
         <td class="num">${v.amount}</td>
         <td class="num"><input class="own" type="number" min="0" value="${owned}" data-item="${id}"></td>
@@ -22,7 +24,7 @@ function renderMaterialTable(need){
         <td colspan="4">${uses.map(u=>`${u.name}: ${u.amount}`).join(' &nbsp;·&nbsp; ') || 'Not needed by any tracked servant right now.'}</td>
       </tr>`;
     }).join('')}
-  </tbody></table>`;
+  </tbody></table></div>`;
 }
 
 function tabstripHtml(){
@@ -31,9 +33,9 @@ function tabstripHtml(){
     if(!data) return '';
     const active = state.selected===s.id ? 'active':'';
     const face = faceFor(s.id, data);
-    return `<div class="tab ${active}" data-tab="${s.id}">
+    return `<div class="tab ${active}" data-tab="${s.id}" data-rarity="${data.rarity}">
       <span class="x" data-remove="${s.id}">✕</span>
-      ${face?`<img src="${face}" alt="">`:'<div style="width:48px;height:48px;border-radius:6px;background:var(--panel2);"></div>'}
+      ${face?`<img src="${face}" alt="${data.name}" loading="lazy">`:'<div style="width:48px;height:48px;border-radius:6px;background:var(--panel2);"></div>'}
       <span class="tname">${data.name}</span>
     </div>`;
   }).join('');
@@ -49,11 +51,15 @@ function tabstripHtml(){
 
 function detailHtmlFor(entry){
   const data = svtCache[entry.id];
+  if(!data) return `<div class="detail"><div class="empty">Servant data isn't loaded yet — use Retry above or check your connection.</div></div>`;
   const ascLabels = ['1st','2nd','3rd','4th (max)'];
   const {need, qp} = materialsFor(entry);
+  const grailInfo = grailInfoFor(data.rarity);
+  const grailOptions = [grailInfo.base, ...grailInfo.levels];
+  const grailTarget = entry.grailTarget || grailInfo.base;
   return `<div class="detail" data-svt="${entry.id}">
     <div class="card-head">
-      <div><h3>${data.name}</h3><div class="meta">${data.className} · ${data.rarity}★</div></div>
+      <div><h3>${data.name}</h3><div class="meta">${data.className} · ${data.rarity}★${data.region==='JP'?' · <span class="jp-badge">JP only</span>':''}</div></div>
       <button class="remove" data-remove="${entry.id}">remove</button>
     </div>
     <div class="section-label">Ascensions reached</div>
@@ -74,9 +80,16 @@ function detailHtmlFor(entry){
     <div class="target-row">Target level for all append skills:
       <select data-appendtarget>${[...Array(10)].map((_,i)=>`<option value="${i+1}" ${entry.appendTarget===i+1?'selected':''}>${i+1}</option>`).join('')}</select>
     </div>
-    <div class="section-label">Materials still needed</div>
+    <div class="section-label">Level cap / Grails</div>
+    <div class="grail-line">Target level:
+      <select data-grailtarget>${grailOptions.map(lv=>`<option value="${lv}" ${grailTarget===lv?'selected':''}>${lv}${lv===grailInfo.base?' (no grail)':''}</option>`).join('')}</select>
+      — Grails needed: ${grailsNeeded(data.rarity, grailTarget)} <span style="opacity:.7;">(QP cost for grailing isn't tracked here)</span>
+    </div>
+    <div class="section-label" style="display:flex;align-items:center;">Materials still needed
+      <button class="reset copylist-btn" data-copylist>Copy as text list</button>
+    </div>
     ${renderMaterialTable(need)}
-    <div class="qp-line">QP needed: ${qp.toLocaleString()}</div>
+    <div class="qp-line">QP needed (ascension + skills + append): ${qp.toLocaleString()}</div>
   </div>`;
 }
 
@@ -84,9 +97,15 @@ function combinedDetailHtml(){
   const all = state.servants.map(materialsFor);
   const {need, qp} = mergeMaterials(all);
   return `<div class="detail">
-    <div class="card-head"><h3>Combined shopping list</h3><div class="meta">${state.servants.length} servants</div></div>
+    <div class="card-head">
+      <h3>Combined shopping list</h3>
+      <div class="meta">${state.servants.length} servants</div>
+    </div>
+    <div class="section-label" style="display:flex;align-items:center;">Materials needed
+      <button class="reset copylist-btn" data-copylist>Copy as text list</button>
+    </div>
     ${renderMaterialTable(need)}
-    <div class="qp-line">Total QP needed: ${qp.toLocaleString()}</div>
+    <div class="qp-line">Total QP needed (ascension + skills + append): ${qp.toLocaleString()}</div>
   </div>`;
 }
 
@@ -162,7 +181,41 @@ function renderDetail(){
       ent.appendTarget = parseInt(e.target.value);
       save(); renderDetail();
     }));
+    d.querySelectorAll('[data-grailtarget]').forEach(sel=>sel.addEventListener('change',e=>{
+      ent.grailTarget = parseInt(e.target.value);
+      save(); renderDetail();
+    }));
   }
+  const copyBtn = detailEl.querySelector('[data-copylist]');
+  if(copyBtn) copyBtn.addEventListener('click', ()=>{
+    const need = entry ? materialsFor(entry).need : mergeMaterials(state.servants.map(materialsFor)).need;
+    const lines = Object.values(need).sort((a,b)=>b.amount-a.amount).map(v=>`${v.name} x${v.amount}`).join('\n');
+    openModal({
+      title: 'Shopping list',
+      desc: 'Plain-text list — copy and paste anywhere (notes app, spreadsheet, etc).',
+      value: lines,
+      readonly: true,
+      primaryLabel: 'Copy',
+      onPrimary: async (val, btn)=>{
+        try{ await navigator.clipboard.writeText(val); }
+        catch(e){ $('#modalTextarea').select(); document.execCommand('copy'); }
+        btn.textContent = 'Copied!';
+        setTimeout(closeModal, 500);
+      }
+    });
+  });
+  detailEl.querySelectorAll('.mat-wrap').forEach(wrap=>{
+    const inp = wrap.querySelector('[data-matfilter]');
+    inp.addEventListener('input', ()=>{
+      const q = inp.value.trim().toLowerCase();
+      wrap.querySelectorAll('tr.matrow').forEach(tr=>{
+        const match = !q || tr.dataset.matname.includes(q);
+        tr.style.display = match ? '' : 'none';
+        const br = wrap.querySelector(`[data-breakdown="${tr.dataset.itemRow}"]`);
+        if(br && !match) br.style.display = 'none';
+      });
+    });
+  });
   detailEl.querySelectorAll('input.own').forEach(inp=>inp.addEventListener('change',e=>{
     inventory[e.target.dataset.item] = Math.max(0, parseInt(e.target.value)||0);
     save(); renderDetail();
@@ -175,22 +228,46 @@ function renderDetail(){
   }));
 }
 
-// ---- Search / class filter ----
+
+// ---- Search / class / rarity filter ----
+// Small starter set of common English nicknames -> a substring that appears in the servant's
+// actual API name. Not exhaustive — extend this object with more as you run into gaps.
+const NICKNAMES = {
+  'herc': 'heracles',
+  'gil': 'gilgamesh',
+  'jalter': "jeanne d'arc (alter)",
+  'salter': 'saber alter',
+  'okitan': 'okita souji',
+  'chaldea': 'mash',
+};
+
+// Accent-insensitive matching plus a few nicknames the API names don't contain (extend freely).
+const norm = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+
 async function updateResults(){
-  await ensureBasicList();
-  const q = $('#searchInput').value.trim().toLowerCase();
+  try{ await ensureBasicList(); }catch(e){ return; }
+  if(!basicList) return;
+  const q = norm($('#searchInput').value.trim());
   const cls = $('#classFilter').value;
+  const rar = $('#rarityFilter').value;
+  const reg = $('#regionFilter').value;
   const box = $('#results');
-  if(!q && !cls){ box.style.display='none'; return; }
-  let matches = basicList.filter(s=> (!q || s.name.toLowerCase().includes(q)) && (!cls || s.className===cls) );
+  if(!q && !cls && !rar && !reg){ box.style.display='none'; return; }
+  const terms = q ? [q].concat(NICKNAMES[q] ? [NICKNAMES[q]] : []) : [];
+  let matches = basicList.filter(s=>
+    (!q || terms.some(t=>norm(s.name).includes(t))) &&
+    (!cls || s.className===cls) && (!rar || s.rarity===parseInt(rar)) &&
+    (!reg || (reg==='na' ? s.na : !s.na)));
   matches.sort((a,b)=> a.className===b.className ? a.name.localeCompare(b.name) : a.className.localeCompare(b.className));
   matches = matches.slice(0,30);
-  box.innerHTML = matches.map(s=>`<div data-id="${s.id}"><span>${s.name}</span><span class="cls">${s.className} · ${s.rarity}★</span></div>`).join('') || '<div style="color:var(--muted);cursor:default;">No matches</div>';
+  box.innerHTML = matches.map(s=>`<div data-id="${s.id}"><span>${s.name}</span><span class="cls">${s.na?'':'<span class="jp-badge">JP</span> '}${s.className} · ${s.rarity}★</span></div>`).join('') || '<div style="color:var(--muted);cursor:default;">No matches</div>';
   box.style.display='block';
 }
 
 $('#searchInput').addEventListener('input', updateResults);
 $('#classFilter').addEventListener('change', updateResults);
+$('#rarityFilter').addEventListener('change', updateResults);
+$('#regionFilter').addEventListener('change', updateResults);
 
 $('#results').addEventListener('click', async e=>{
   const row = e.target.closest('div[data-id]');
@@ -198,11 +275,19 @@ $('#results').addEventListener('click', async e=>{
   await addServant(parseInt(row.dataset.id));
   $('#searchInput').value='';
   $('#classFilter').value='';
+  $('#rarityFilter').value='';
+  $('#regionFilter').value='';
   $('#results').style.display='none';
 });
 
 $('#modeSingle').addEventListener('click', ()=>setMode('single'));
 $('#modeRoster').addEventListener('click', ()=>setMode('roster'));
+
+$('#resetAll').addEventListener('click', ()=>{
+  if(!confirm('This clears every tracked servant, your inventory, and all cached data. This cannot be undone. Continue?')) return;
+  Object.keys(localStorage).filter(k=>k.startsWith('cl_')).forEach(k=>localStorage.removeItem(k));
+  location.reload();
+});
 
 // ---- Themed modal (replaces native prompt/alert for import/export) ----
 function openModal({title, desc, value, readonly, primaryLabel, onPrimary}){
@@ -210,7 +295,8 @@ function openModal({title, desc, value, readonly, primaryLabel, onPrimary}){
   $('#modalDesc').textContent = desc;
   $('#modalDesc').style.color = 'var(--muted)';
   const ta = $('#modalTextarea');
-  ta.value = value;
+  ta.value = value ?? '';
+  ta.style.display = value===null ? 'none' : 'block';
   ta.readOnly = !!readonly;
   const primary = $('#modalPrimary');
   primary.textContent = primaryLabel;
@@ -231,14 +317,16 @@ $('#exportInv').addEventListener('click', ()=>{
     value: json,
     readonly: true,
     primaryLabel: 'Copy',
-    onPrimary: async (val, btn)=>{
-      try{ await navigator.clipboard.writeText(val); }
-      catch(e){ $('#modalTextarea').select(); document.execCommand('copy'); }
-      btn.textContent = 'Copied!';
-      setTimeout(closeModal, 500);
-    }
+    onPrimary: copyAndClose
   });
 });
+
+async function copyAndClose(val, btn){
+  try{ await navigator.clipboard.writeText(val); }
+  catch(e){ $('#modalTextarea').select(); document.execCommand('copy'); }
+  btn.textContent = 'Copied!';
+  setTimeout(closeModal, 500);
+}
 
 $('#importInv').addEventListener('click', ()=>{
   openModal({
@@ -261,13 +349,18 @@ $('#importInv').addEventListener('click', ()=>{
 });
 
 // ---- Init ----
-(async function init(){
+async function init(){
   setMode(state.mode||'single');
-  await ensureBasicList();
+  try{ await ensureBasicList(); }
+  catch(e){ return; } // showFetchError() already put a Retry button in #status
   if(state.servants.length){
     statusEl.textContent = 'Loading saved servants…';
-    for(const s of state.servants) await fetchServant(s.id);
-    statusEl.textContent = '';
+    for(const s of state.servants){
+      try{ await fetchServant(s.id); }
+      catch(e){ return; } // stop here — Retry button is already showing, no point continuing
+    }
+    if(statusEl.textContent==='Loading saved servants…') statusEl.textContent = '';
   }
   render();
-})();
+}
+init();

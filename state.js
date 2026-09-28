@@ -6,6 +6,7 @@ let state = JSON.parse(localStorage.getItem('cl_state')||'null') || {mode:'singl
 state.servants.forEach(s=>{
   if(!s.appendCurrent) s.appendCurrent = [1,1,1];
   if(!s.appendTarget) s.appendTarget = 10;
+  if(s.grailTarget===undefined) s.grailTarget = null;
 });
 let inventory = JSON.parse(localStorage.getItem('cl_inventory')||'{}');
 
@@ -27,8 +28,9 @@ function setMode(m){
 
 async function addServant(id){
   if(!state.servants.some(s=>s.id===id)){
-    await fetchServant(id);
-    const entry = {id, ascReached:[false,false,false,false], skillCurrent:[1,1,1], skillTarget:10, appendCurrent:[1,1,1], appendTarget:10};
+    try{ await fetchServant(id, ()=>addServant(id)); }
+    catch(e){ return; } // fetch failed — showFetchError() already handled the UI, don't add a broken entry
+    const entry = {id, ascReached:[false,false,false,false], skillCurrent:[1,1,1], skillTarget:10, appendCurrent:[1,1,1], appendTarget:10, grailTarget:null};
     if(state.mode==='single') state.servants = [entry];
     else state.servants.push(entry);
   }

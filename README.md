@@ -4,7 +4,8 @@ Chaldea Ledger is a lightweight Fate/Grand Order servant material tracker. It he
 
 ## Features
 
-- Search servants by name and filter by class.
+- Search servants by name and filter by class, rarity, and region.
+- Browse the combined NA and JP servant list, with JP-only servants clearly marked.
 - Track all four ascension stages for each servant.
 - Set current and target levels for all three skills.
 - Track append skill levels, including current and target values.
@@ -35,6 +36,7 @@ If you prefer, the app can also be opened directly from `index.html`, but using 
 ## How to Use
 
 - Search for a servant in the top panel.
+- Use the region filter to show all servants, NA servants only, or JP-only servants.
 - Select a result to add it to the tracker.
 - Use the tabs to switch between tracked servants.
 - Check off ascension stages that are already complete.
@@ -46,7 +48,7 @@ If you prefer, the app can also be opened directly from `index.html`, but using 
 
 ## Data Source
 
-Servant and material data is fetched from the [Atlas Academy API](https://api.atlasacademy.io/). The app requests the North America (`NA`) data and caches the servant list and detailed servant responses locally in the browser.
+Servant and material data is fetched from the [Atlas Academy API](https://api.atlasacademy.io/). The app uses the English JP servant list as its complete catalog, marks servants already released in North America (`NA`), and requests servant details from the appropriate NA or JP endpoint.
 
 An internet connection is required the first time servant data is loaded. After that, cached data may remain usable offline depending on the browser's storage state.
 
@@ -67,7 +69,7 @@ The tracker stores data in the browser under these keys:
 
 - `cl_state` for selected servants, roster mode, and tracked progress
 - `cl_inventory` for owned material quantities
-- `cl_basic` for the cached servant list
+- `cl_basic2` for the cached combined servant list and NA availability flags
 - `cl_svt_<id>` for cached servant detail data
 
 To reset the tracker, clear this site's local storage from your browser's developer tools.
