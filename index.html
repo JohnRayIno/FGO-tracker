@@ -5,7 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fate Trcker — Servant Material Tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link
+  href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600&display=swap"
+  rel="stylesheet"
+>
 <link rel="stylesheet" href="shared/styles.css">
 </head>
 <body>
@@ -22,8 +25,14 @@
     <button id="importInv" class="reset">Import inventory</button>
   </div>
   <div class="search">
-    <div style="display:flex;gap:8px;">
-      <input id="searchInput" type="text" placeholder="Search a servant by name…" autocomplete="off" style="flex:1;">
+    <div style="display: flex; gap: 8px;">
+      <input
+        id="searchInput"
+        type="text"
+        placeholder="Search a servant by name…"
+        autocomplete="off"
+        style="flex: 1;"
+      >
       <select id="classFilter">
         <option value="">All classes</option>
         <option value="saber">Saber</option>
@@ -60,14 +69,20 @@
   <div id="status" class="status"></div>
   <div id="tabstrip"></div>
   <div id="detail"></div>
-  <button id="resetAll" class="reset" type="button">Reset all data</button>
+  <button id="resetAll" class="reset" type="button">
+    Reset all data
+  </button>
 </div>
 
-<div id="modalOverlay" class="modal-overlay" style="display:none;">
+<div id="modalOverlay" class="modal-overlay" style="display: none;">
   <div class="modal">
     <h3 id="modalTitle"></h3>
     <p id="modalDesc" class="modal-desc"></p>
-    <textarea id="modalTextarea" class="modal-textarea" spellcheck="false"></textarea>
+    <textarea
+      id="modalTextarea"
+      class="modal-textarea"
+      spellcheck="false"
+    ></textarea>
     <div class="modal-actions">
       <button id="modalSecondary" class="reset">Cancel</button>
       <button id="modalPrimary" class="modal-primary">Copy</button>
@@ -75,8 +90,18 @@
   </div>
 </div>
 <footer class="footer">
-  <p>Unofficial fan-made tool, not affiliated with or endorsed by Aniplex, Delightworks, TYPE-MOON, or Lasengle. Fate/Grand Order and all servant names, art, and game data are property of their respective owners.</p>
-  <p>Servant and material data provided by the <a href="https://atlasacademy.io" target="_blank" rel="noopener">Atlas Academy</a> API — nothing here is stored or redistributed beyond your own browser.</p>
+  <p>
+    Unofficial fan-made tool, not affiliated with or endorsed by Aniplex,
+    Delightworks, TYPE-MOON, or Lasengle. Fate/Grand Order and all servant
+    names, art, and game data are property of their respective owners.
+  </p>
+  <p>
+    Servant and material data provided by the
+    <a href="https://atlasacademy.io" target="_blank" rel="noopener">
+      Atlas Academy
+    </a>
+    API — nothing here is stored or redistributed beyond your own browser.
+  </p>
 </footer>
 
 <script src="features/servants/api.js"></script>
