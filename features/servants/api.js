@@ -7,21 +7,57 @@ const BASIC_JP = `${API}/export/JP/basic_servant_lang_en.json`; // JP data with 
 const $ = (s) => document.querySelector(s);
 const statusEl = $('#status');
 
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[character]));
+}
+
+function safeImageUrl(value) {
+  try {
+    const url = new URL(value, window.location.href);
+    return url.protocol === 'https:' ? escapeHtml(url.href) : '';
+  } catch (e) {
+    return '';
+  }
+}
+
+function parseApiCache(key, fallback) {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) || 'null');
+    return value === null ? fallback : value;
+  } catch (e) {
+    localStorage.removeItem(key);
+    return fallback;
+  }
+}
+
 // New key (cl_basic2): the old NA-only list is ignored and dropped.
 try {
   localStorage.removeItem('cl_basic');
 } catch (e) {}
 
-let basicList = JSON.parse(localStorage.getItem('cl_basic2') || 'null');
+let basicList = parseApiCache('cl_basic2', null);
 const svtCache = {};
 
 // Visible error with an optional Retry button (instead of hanging on "Fetching…" forever).
 function showError(msg, retry) {
-  statusEl.innerHTML = `<span style="color:var(--red)">${msg}</span> ${
-    retry ? '<button class="reset" id="retryBtn">Retry</button>' : ''
-  }`;
+  statusEl.replaceChildren();
+  const message = document.createElement('span');
+  message.style.color = 'var(--red)';
+  message.textContent = msg;
+  statusEl.append(message);
 
   if (retry) {
+    const button = document.createElement('button');
+    button.className = 'reset';
+    button.id = 'retryBtn';
+    button.textContent = 'Retry';
+    statusEl.append(' ', button);
     $('#retryBtn').onclick = () => {
       statusEl.textContent = '';
       retry();
@@ -102,11 +138,15 @@ async function fetchServant(id, retry) {
 
   const cached = localStorage.getItem('cl_svt_' + id);
   if (cached) {
-    const c = JSON.parse(cached);
-    // Cached JP data goes stale once the servant reaches NA — refetch in that case.
-    if (!(c.region === 'JP' && region === 'NA')) {
-      svtCache[id] = c;
-      return c;
+    try {
+      const c = JSON.parse(cached);
+      // Cached JP data goes stale once the servant reaches NA — refetch in that case.
+      if (c && c.region && !(c.region === 'JP' && region === 'NA')) {
+        svtCache[id] = c;
+        return c;
+      }
+    } catch (e) {
+      localStorage.removeItem('cl_svt_' + id);
     }
   }
 

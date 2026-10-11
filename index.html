@@ -23,7 +23,9 @@
     <span style="flex:1;"></span>
     <button id="exportInv" class="reset">Export inventory</button>
     <button id="importInv" class="reset">Import inventory</button>
+    <button id="accountButton" class="reset" disabled>Sign in</button>
   </div>
+  <div id="accountStatus" class="status"></div>
   <div class="search">
     <div style="display: flex; gap: 8px;">
       <input
@@ -74,6 +76,29 @@
   </button>
 </div>
 
+<div id="accountOverlay" class="modal-overlay" style="display: none;">
+  <div class="modal">
+    <h3>Cloud account</h3>
+    <p id="accountModalStatus" class="modal-desc"></p>
+    <div id="accountSignedOut">
+      <input id="accountEmailInput" type="email" placeholder="Email address" autocomplete="email">
+      <input id="accountPasswordInput" type="password" placeholder="Password (8+ characters)" autocomplete="current-password">
+      <div class="modal-actions">
+        <button id="accountClose" class="reset">Cancel</button>
+        <button id="accountSignUp" class="reset">Create account</button>
+        <button id="accountSignIn" class="modal-primary">Sign in</button>
+      </div>
+    </div>
+    <div id="accountSignedIn" style="display:none;">
+      <p>Signed in as <strong id="accountEmail"></strong></p>
+      <div class="modal-actions">
+        <button id="accountCloseSignedIn" class="reset">Close</button>
+        <button id="accountSignOut" class="modal-primary">Sign out</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="modalOverlay" class="modal-overlay" style="display: none;">
   <div class="modal">
     <h3 id="modalTitle"></h3>
@@ -104,9 +129,12 @@
   </p>
 </footer>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="features/auth/config.js"></script>
 <script src="features/servants/api.js"></script>
 <script src="features/tracker/state.js"></script>
 <script src="features/progression/materials.js"></script>
 <script src="features/tracker/ui.js"></script>
+<script src="features/auth/auth.js"></script>
 </body>
 </html>

@@ -1,22 +1,87 @@
 // ---- App state ----
 const COMBINED = 'combined';
 
-let state = JSON.parse(localStorage.getItem('cl_state') || 'null') || {
+const DEFAULT_STATE = {
   mode: 'single',
   servants: [],
   selected: null
 };
+
+function parseStoredJson(key, fallback) {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) || 'null');
+    return value === null ? fallback : value;
+  } catch (e) {
+    localStorage.removeItem(key);
+    return fallback;
+  }
+}
+
+function boundedLevel(value, fallback) {
+  return Number.isInteger(value) ? Math.max(1, Math.min(10, value)) : fallback;
+}
+
+function normalizeState(value) {
+  if (!value || typeof value !== 'object') return { ...DEFAULT_STATE };
+
+  const servants = Array.isArray(value.servants)
+    ? value.servants
+      .filter((servant) => servant && Number.isInteger(servant.id) && servant.id > 0)
+      .map((servant) => ({
+        id: servant.id,
+        ascReached: Array.isArray(servant.ascReached)
+          ? [0, 1, 2, 3].map((index) => servant.ascReached[index] === true)
+          : [false, false, false, false],
+        skillCurrent: Array.isArray(servant.skillCurrent)
+          ? [0, 1, 2].map((index) => boundedLevel(servant.skillCurrent[index], 1))
+          : [1, 1, 1],
+        skillTarget: boundedLevel(servant.skillTarget, 10),
+        appendCurrent: Array.isArray(servant.appendCurrent)
+          ? [0, 1, 2].map((index) => boundedLevel(servant.appendCurrent[index], 1))
+          : [1, 1, 1],
+        appendTarget: boundedLevel(servant.appendTarget, 10),
+        grailTarget: Number.isInteger(servant.grailTarget) ? servant.grailTarget : null
+      }))
+    : [];
+
+  const selected = value.selected === COMBINED ||
+    (Number.isInteger(value.selected) && servants.some((servant) => servant.id === value.selected))
+    ? value.selected
+    : (servants[0]?.id ?? null);
+
+  return {
+    mode: value.mode === 'roster' ? 'roster' : 'single',
+    servants,
+    selected
+  };
+}
+
+function normalizeInventory(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value)
+    .filter(([id, quantity]) =>
+      /^\d+$/.test(id) &&
+      Number.isSafeInteger(quantity) &&
+      quantity >= 0
+    ));
+}
+
+let state = normalizeState(parseStoredJson('cl_state', DEFAULT_STATE));
 // Back-fill append-skill fields for servants saved before that feature existed.
-state.servants.forEach((servant) => {
-  if (!servant.appendCurrent) servant.appendCurrent = [1, 1, 1];
-  if (!servant.appendTarget) servant.appendTarget = 10;
-  if (servant.grailTarget === undefined) servant.grailTarget = null;
-});
-let inventory = JSON.parse(localStorage.getItem('cl_inventory') || '{}');
+let inventory = normalizeInventory(parseStoredJson('cl_inventory', {}));
 
 function save() {
-  localStorage.setItem('cl_state', JSON.stringify(state));
-  localStorage.setItem('cl_inventory', JSON.stringify(inventory));
+  saveLocalOnly();
+  if (typeof saveCloudData === 'function') saveCloudData();
+}
+
+function saveLocalOnly() {
+  try {
+    localStorage.setItem('cl_state', JSON.stringify(state));
+    localStorage.setItem('cl_inventory', JSON.stringify(normalizeInventory(inventory)));
+  } catch (e) {
+    console.error('Could not save tracker data locally.', e);
+  }
 }
 
 function setMode(mode) {

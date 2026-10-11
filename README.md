@@ -14,6 +14,8 @@ Fate Tracker is a lightweight Fate/Grand Order servant material tracker. It help
 - View a combined shopping list for all tracked servants.
 - Import and export inventory data as JSON from the browser.
 - Persist tracker state, inventory, and fetched servant data in `localStorage`.
+- Sign up and sign in with a Supabase email/password account.
+- Sync tracker state and inventory to the signed-in account.
 
 ## Getting Started
 
@@ -77,6 +79,28 @@ The tracker stores data in the browser under these keys:
 - `cl_svt_<id>` for cached servant detail data
 
 To reset the tracker, clear this site's local storage from your browser's developer tools.
+
+## Supabase account setup
+
+1. Create a Supabase project.
+2. In the Supabase SQL Editor, run [`supabase/schema.sql`](./supabase/schema.sql).
+3. In Authentication > Providers, enable Email. Decide whether email confirmation is required.
+4. Copy the project's URL and public publishable/anon key into [`features/auth/config.js`](./features/auth/config.js).
+5. Add your Vercel production URL to Authentication > URL Configuration as the Site URL and redirect URL.
+6. Deploy to Vercel. Users can create an account from the **Sign in** button.
+
+Only the public publishable/anon key belongs in `config.js`. Never use a Supabase service-role key in frontend code.
+
+When a user signs in for the first time, existing local tracker data is migrated to their account. Later changes are written to both local storage and Supabase. Signing out leaves local data in the browser but stops cloud synchronization. **Reset all data** also deletes the signed-in user's cloud row.
+
+## Security
+
+- Imported inventory JSON is checked for a plain object, numeric material IDs, and non-negative integer quantities.
+- Saved tracker state is normalized before use so malformed or stale `localStorage` data cannot set arbitrary values.
+- API and imported values are escaped before HTML rendering, and remote image URLs are restricted to HTTPS.
+- Production deployments on Vercel receive a Content Security Policy and standard browser security headers from `vercel.json`.
+- Passwords are handled by Supabase Auth; the application never receives or stores password hashes. Supabase's browser client stores its session locally so it can maintain the sign-in state. Do not store API secrets or other sensitive data in this client-side application.
+- Keep `.env` files and local logs out of version control; `.gitignore` includes these patterns.
 
 ## Notes
 

@@ -19,14 +19,14 @@ function renderMaterialTable(need) {
       const remaining = Math.max(0, value.amount - owned);
       const uses = breakdown[id] || [];
       const multi = uses.length > 1;
-      return `<tr class="matrow ${multi ? 'bottleneck' : ''}" data-item-row="${id}" data-matname="${value.name.toLowerCase()}">
-        <td class="mat">${value.icon ? `<img src="${value.icon}">` : ''}${value.name}${multi ? `<span class="needcount">needed by ${uses.length} servants</span>` : ''}</td>
+      return `<tr class="matrow ${multi ? 'bottleneck' : ''}" data-item-row="${escapeHtml(id)}" data-matname="${escapeHtml(value.name.toLowerCase())}">
+        <td class="mat">${safeImageUrl(value.icon) ? `<img src="${safeImageUrl(value.icon)}" alt="">` : ''}${escapeHtml(value.name)}${multi ? `<span class="needcount">needed by ${uses.length} servants</span>` : ''}</td>
         <td class="num">${value.amount}</td>
         <td class="num"><input class="own" type="number" min="0" value="${owned}" data-item="${id}"></td>
         <td class="num ${remaining === 0 ? 'done' : 'deficit'}">${remaining === 0 ? '✓ done' : remaining}</td>
       </tr>
       <tr class="breakdown-row" data-breakdown="${id}" style="display:none;">
-        <td colspan="4">${uses.map((use) => `${use.name}: ${use.amount}`).join(' &nbsp;·&nbsp; ') || 'Not needed by any tracked servant right now.'}</td>
+        <td colspan="4">${uses.map((use) => `${escapeHtml(use.name)}: ${use.amount}`).join(' &nbsp;·&nbsp; ') || 'Not needed by any tracked servant right now.'}</td>
       </tr>`;
     }).join('')}
   </tbody></table></div>`;
@@ -41,8 +41,8 @@ function tabstripHtml() {
     const face = faceFor(servant.id, data);
     return `<div class="tab ${active}" data-tab="${servant.id}" data-rarity="${data.rarity}">
       <span class="x" data-remove="${servant.id}">✕</span>
-      ${face ? `<img src="${face}" alt="${data.name}" loading="lazy">` : '<div style="width:48px;height:48px;border-radius:6px;background:var(--panel2);"></div>'}
-      <span class="tname">${data.name}</span>
+      ${face ? `<img src="${safeImageUrl(face)}" alt="${escapeHtml(data.name)}" loading="lazy">` : '<div style="width:48px;height:48px;border-radius:6px;background:var(--panel2);"></div>'}
+      <span class="tname">${escapeHtml(data.name)}</span>
     </div>`;
   }).join('');
   if (state.mode === 'roster' && state.servants.length > 1) {
@@ -68,7 +68,7 @@ function detailHtmlFor(entry) {
   const grailTarget = entry.grailTarget || grailInfo.base;
   return `<div class="detail" data-svt="${entry.id}">
     <div class="card-head">
-      <div><h3>${data.name}</h3><div class="meta">${data.className} · ${data.rarity}★${data.region==='JP'?' · <span class="jp-badge">JP only</span>':''}</div></div>
+      <div><h3>${escapeHtml(data.name)}</h3><div class="meta">${escapeHtml(data.className)} · ${data.rarity}★${data.region==='JP'?' · <span class="jp-badge">JP only</span>':''}</div></div>
       <button class="remove" data-remove="${entry.id}">remove</button>
     </div>
     <div class="section-label">Ascensions reached</div>
@@ -298,7 +298,25 @@ async function updateResults() {
     ? a.name.localeCompare(b.name)
     : a.className.localeCompare(b.className));
   matches = matches.slice(0, 30);
-  box.innerHTML = matches.map((servant) => `<div data-id="${servant.id}"><span>${servant.name}</span><span class="cls">${servant.na ? '' : '<span class="jp-badge">JP</span> '}${servant.className} · ${servant.rarity}★</span></div>`).join('') || '<div style="color:var(--muted);cursor:default;">No matches</div>';
+  box.replaceChildren();
+  if (!matches.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty';
+    empty.textContent = 'No matches';
+    box.append(empty);
+  } else {
+    matches.forEach((servant) => {
+      const row = document.createElement('div');
+      row.dataset.id = String(servant.id);
+      const name = document.createElement('span');
+      name.textContent = servant.name;
+      const details = document.createElement('span');
+      details.className = 'cls';
+      details.textContent = `${servant.na ? '' : 'JP '}${servant.className} · ${servant.rarity}★`;
+      row.append(name, details);
+      box.append(row);
+    });
+  }
   box.style.display = 'block';
 }
 
@@ -321,8 +339,16 @@ $('#results').addEventListener('click', async (event) => {
 $('#modeSingle').addEventListener('click', ()=>setMode('single'));
 $('#modeRoster').addEventListener('click', ()=>setMode('roster'));
 
-$('#resetAll').addEventListener('click', () => {
+$('#resetAll').addEventListener('click', async () => {
   if (!confirm('This clears every tracked servant, your inventory, and all cached data. This cannot be undone. Continue?')) return;
+  if (typeof deleteCloudData === 'function' && currentUser) {
+    try {
+      await deleteCloudData();
+    } catch (e) {
+      statusEl.textContent = 'Could not clear your cloud data. Nothing was reset.';
+      return;
+    }
+  }
   Object.keys(localStorage).filter(k=>k.startsWith('cl_')).forEach(k=>localStorage.removeItem(k));
   location.reload();
 });
@@ -384,7 +410,15 @@ $('#importInv').addEventListener('click', () => {
     primaryLabel: 'Apply',
     onPrimary: (value) => {
       try {
-        inventory = JSON.parse(value);
+        const imported = JSON.parse(value);
+        if (!imported || typeof imported !== 'object' || Array.isArray(imported)) {
+          throw new Error('Inventory must be a JSON object.');
+        }
+        const validated = normalizeInventory(imported);
+        if (Object.keys(imported || {}).length !== Object.keys(validated).length) {
+          throw new Error('Inventory values must be non-negative integers keyed by material IDs.');
+        }
+        inventory = validated;
         save();
         render();
         closeModal();
