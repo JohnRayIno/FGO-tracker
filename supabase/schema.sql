@@ -27,3 +27,9 @@ create policy "Users can update their own tracker data"
   to authenticated
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
+
+drop policy if exists "Users can delete their own tracker data" on public.user_data;
+create policy "Users can delete their own tracker data"
+  on public.user_data for delete
+  to authenticated
+  using (auth.uid() = user_id);

@@ -19,23 +19,19 @@ Fate Tracker is a lightweight Fate/Grand Order servant material tracker. It help
 
 ## Getting Started
 
-No build tools or package installation are required.
+Access the website at [https://fgo-tracker-kohl.vercel.app/](https://fgo-tracker-kohl.vercel.app/).
 
-Live site: [fgo-tracker-kohl.vercel.app](https://fgo-tracker-kohl.vercel.app/)
+## Deploying to Vercel
 
-1. Clone or download this repository.
-2. Serve the project with a local static web server.
-3. Open the app in a modern browser.
+This is a static frontend and does not require a build command.
 
-Example:
+1. Import the repository into Vercel.
+2. Choose **Other** as the Framework Preset, or leave the framework unset.
+3. Leave the Build Command blank.
+4. Use the project root as the Output Directory.
+5. Deploy the project.
 
-```bash
-python3 -m http.server 8000
-```
-
-Then visit http://localhost:8000.
-
-If you prefer, the app can also be opened directly from `index.html`, but using a local server is recommended for the most reliable browser behavior.
+The included [`vercel.json`](./vercel.json) adds production security headers.
 
 ## How to Use
 
@@ -68,6 +64,9 @@ The project uses a lightweight feature-driven structure while remaining a static
 | `features/progression/materials.js` | Ascension, skill, append-skill, and combined material calculations |
 | `features/tracker/state.js` | Tracker state, roster behavior, and persistence |
 | `features/tracker/ui.js` | Rendering, search, controls, tab switching, and modal UI |
+| `features/auth/config.js` | Public Supabase project configuration |
+| `features/auth/auth.js` | Email/password authentication and cloud synchronization |
+| `supabase/schema.sql` | User data table and row-level security policies |
 
 ## Local Storage
 
@@ -82,16 +81,48 @@ To reset the tracker, clear this site's local storage from your browser's develo
 
 ## Supabase account setup
 
+The account system uses Supabase Auth and a PostgreSQL table protected by Row Level Security (RLS).
+
+### Configure Supabase
+
 1. Create a Supabase project.
-2. In the Supabase SQL Editor, run [`supabase/schema.sql`](./supabase/schema.sql).
-3. In Authentication > Providers, enable Email. Decide whether email confirmation is required.
-4. Copy the project's URL and public publishable/anon key into [`features/auth/config.js`](./features/auth/config.js).
-5. Add your Vercel production URL to Authentication > URL Configuration as the Site URL and redirect URL.
-6. Deploy to Vercel. Users can create an account from the **Sign in** button.
+2. Open the Supabase SQL Editor and run [`supabase/schema.sql`](./supabase/schema.sql).
+3. Confirm that the `user_data` table has RLS enabled and policies for select, insert, update, and delete.
+4. Open Authentication > Providers and enable **Email**.
+5. Choose whether new accounts must confirm their email address.
+6. Open Project Settings > API and copy the project URL and public publishable/anon key into [`features/auth/config.js`](./features/auth/config.js):
+
+   ```js
+   const SUPABASE_URL = 'https://your-project.supabase.co';
+   const SUPABASE_ANON_KEY = 'your-public-anon-key';
+   ```
+
+7. In Authentication > URL Configuration, set the Site URL to your Vercel URL.
+8. Add the Vercel URL to the Redirect URLs list.
+9. Deploy or redeploy the project on Vercel.
+
+The **Sign in** button becomes available after both configuration values are present.
 
 Only the public publishable/anon key belongs in `config.js`. Never use a Supabase service-role key in frontend code.
 
-When a user signs in for the first time, existing local tracker data is migrated to their account. Later changes are written to both local storage and Supabase. Signing out leaves local data in the browser but stops cloud synchronization. **Reset all data** also deletes the signed-in user's cloud row.
+### Account behavior
+
+- A user can create an account or sign in from the **Sign in** button.
+- On first sign-in, existing local tracker data is migrated if the account has no saved cloud data.
+- Once signed in, tracker state and inventory are saved to both local storage and the user's Supabase row.
+- Returning users load their saved cloud state after authentication.
+- Signing out stops cloud synchronization but does not delete local browser data.
+- **Reset all data** clears local data and deletes the signed-in user's cloud row.
+- If Supabase is unavailable or not configured, the app continues using local storage.
+
+### Testing the integration
+
+1. Create a test account from the app.
+2. Confirm the account email if email confirmation is enabled.
+3. Add a servant and change an inventory quantity.
+4. Sign out, then sign in again.
+5. Confirm that the servant and inventory are restored.
+6. Test with a second account to confirm it cannot see the first account's data.
 
 ## Security
 
